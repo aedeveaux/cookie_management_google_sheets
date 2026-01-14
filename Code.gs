@@ -64,11 +64,14 @@ const ENTITIES = {
    WEB APP ROUTER
 =========================== */
 function doGet(e) {
-  // Serve your existing HTML file named "index" (Apps Script HTML file, not the local filename).
-  // If your HTML file in Apps Script is named "Index", change below accordingly.
+  const params = (e && e.parameter) ? e.parameter : {};
+  const page = String(params.page || "").toLowerCase();
+  const mode = page === "parent" ? "parent" : "admin";
+
   const t = HtmlService.createTemplateFromFile("Index");
-  // Pass query params to the page if you want (optional)
-  t.__query = (e && e.parameter) ? e.parameter : {};
+  t.__query = params;
+  t.__mode = mode;
+
   return t.evaluate()
     .setTitle("Troop Cookie Management")
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);

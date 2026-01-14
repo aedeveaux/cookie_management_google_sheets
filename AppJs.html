@@ -1,0 +1,355 @@
+<script>
+(function () {
+  const $ = (sel) => document.querySelector(sel);
+
+  const elNav = $("#nav");
+  const elMain = $("#main");
+  const elOverlay = $("#overlay");
+  const elOverlayText = $("#overlayText");
+  const elBanner = $("#banner");
+
+  const QUERY = window.__QUERY || {};
+  const MODE = window.__MODE || "admin";
+
+  const state = {
+    mode: MODE,
+    who: null,
+    bootstrap: null,
+    view: "dashboard",
+  };
+
+  function setOverlay(on, text) {
+    if (!elOverlay) return;
+    elOverlay.classList.toggle("on", !!on);
+    if (text && elOverlayText) elOverlayText.textContent = text;
+  }
+
+  function showError(msg) {
+    if (!elBanner) return;
+    elBanner.className = "banner error";
+    elBanner.style.display = "block";
+    elBanner.textContent = msg || "Something went wrong.";
+  }
+
+  function clearBanner() {
+    if (!elBanner) return;
+    elBanner.className = "banner";
+    elBanner.textContent = "";
+    elBanner.style.display = "none";
+  }
+
+  function showInfo(msg) {
+    if (!elBanner) return;
+    elBanner.className = "banner info";
+    elBanner.style.display = "block";
+    elBanner.textContent = msg || "";
+  }
+
+  function fmtMoney(v) {
+    const n = Number(v);
+    if (!isFinite(n)) return "$0.00";
+    return n.toLocaleString(undefined, { style: "currency", currency: "USD" });
+  }
+
+  function fmtInt(v) {
+    const n = Number(v);
+    if (!isFinite(n)) return "0";
+    return String(Math.round(n));
+  }
+
+  // ✅ Improved API wrapper: shows exact server error + response
+  function api(action, payload) {
+    return new Promise((resolve, reject) => {
+      google.script.run
+        .withSuccessHandler((res) => {
+          // res should be {ok,data,error}
+          if (res && res.ok === true) return resolve(res.data);
+
+          // If server returned our standard error, show it
+          const errMsg =
+            (res && typeof res.error === "string" && res.error.trim()) ? res.error :
+            (res ? ("API error (unexpected response): " + safeJson(res)) : "API error (no response)");
+          reject(errMsg);
+        })
+        .withFailureHandler((err) => {
+          reject(err && err.message ? err.message : String(err));
+        })
+        .apiV2({ action, payload: payload || {} });
+    });
+  }
+
+  function safeJson(obj) {
+    try { return JSON.stringify(obj); } catch (_) { return String(obj); }
+  }
+
+  function buildNav() {
+    if (!elNav) return;
+    elNav.innerHTML = "";
+
+    const title = document.createElement("div");
+    title.className = "nav-title";
+    title.id = "navTitle";
+    title.textContent = state.mode === "parent" ? "Parent Portal" : "Cookie Mom";
+    elNav.appendChild(title);
+
+    const items = (state.mode === "parent")
+      ? [
+          { key: "dashboard", label: "My Dashboard" },
+          { key: "requests", label: "My Requests" },
+          { key: "credits", label: "My Sales/Credits" },
+        ]
+      : [
+          { key: "dashboard", label: "Dashboard" },
+          { key: "requests", label: "Requests" },
+          { key: "inventory", label: "Inventory" },
+          { key: "parents", label: "Parents & Girls" },
+          { key: "payments", label: "Money" },
+          { key: "booths", label: "Booths" },
+        ];
+
+    for (const it of items) {
+      const btn = document.createElement("button");
+      btn.textContent = it.label;
+      btn.dataset.view = it.key;
+      btn.className = (state.view === it.key) ? "active" : "";
+      btn.addEventListener("click", () => {
+        state.view = it.key;
+        buildNav();
+        render();
+      });
+      elNav.appendChild(btn);
+    }
+  }
+
+  function render() {
+    clearBanner();
+
+    if (state.mode === "admin") {
+      switch (state.view) {
+        case "dashboard": return renderAdminDashboard();
+        default: return renderPlaceholder(state.view);
+      }
+    } else {
+      switch (state.view) {
+        case "dashboard": return renderParentDashboard();
+        case "requests": return renderParentRequests();
+        case "credits": return renderParentCredits();
+        default: return renderParentDashboard();
+      }
+    }
+  }
+
+  function renderPlaceholder(key) {
+    const titles = {
+      requests: "Requests",
+      inventory: "Inventory",
+      parents: "Parents & Girls",
+      payments: "Money",
+      booths: "Booths",
+    };
+    const title = titles[key] || "Page";
+    elMain.innerHTML = `
+      <div style="max-width: 1100px;">
+        <h2 style="margin: 6px 0 8px;">${escapeHtml(title)}</h2>
+        <div style="opacity:.8;">This tab will be wired next.</div>
+      </div>
+    `;
+  }
+
+  function renderAdminDashboard() {
+    const b = state.bootstrap || {};
+    const inv = Array.isArray(b.inventorySummary) ? b.inventorySummary : [];
+    const ps = Array.isArray(b.parentSummary) ? b.parentSummary : [];
+    const kpis = b.kpis || {};
+
+    const totalCredited = ps.reduce((acc, r) => acc + toNum(r["Total_Credited_$"]), 0);
+    const totalPaid = ps.reduce((acc, r) => acc + toNum(r["Total_Paid_$"]), 0);
+    const totalBalance = ps.reduce((acc, r) => acc + toNum(r["Balance_Due_$"]), 0);
+
+    const totalOnHand = inv.reduce((acc, r) => {
+      const v = r["Boxes On Hand"] ?? r["Boxes_On_Hand"] ?? r["Net_Troop_Inventory"] ?? 0;
+      return acc + toNum(v);
+    }, 0);
+
+    elMain.innerHTML = `
+      <div style="max-width: 1400px;">
+        <h2 style="margin: 6px 0 12px;">Dashboard</h2>
+
+        <div style="display:grid;grid-template-columns:repeat(4,minmax(220px,1fr));gap:14px;margin-bottom:14px;">
+          ${tile("Total Credited", fmtMoney(totalCredited))}
+          ${tile("Total Collected", fmtMoney(totalPaid))}
+          ${tile("Outstanding Troop Debt", fmtMoney(totalBalance), true)}
+          ${tile("Total Boxes on Hand", fmtInt(totalOnHand))}
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(220px,1fr));gap:14px;margin-bottom:18px;">
+          ${tile("⚠️ Pending Requests", fmtInt(kpis.requestsPending || 0))}
+          ${tile("🚚 Approved / Not Delivered", fmtInt(kpis.requestsApproved || 0))}
+          ${tile("🍪 Booth Lines Needing Post", fmtInt(kpis.boothsNeedingPost || 0))}
+        </div>
+
+        <div style="padding: 16px; border-radius: 16px; background: rgba(0,0,0,0.03);">
+          <h3 style="margin: 0 0 10px;">Inventory by Cookie Type</h3>
+          ${renderInventoryTable(inv)}
+        </div>
+      </div>
+    `;
+  }
+
+  function renderInventoryTable(inv) {
+    if (!inv || inv.length === 0) return `<div style="opacity:.75;">No inventory rows.</div>`;
+    const headers = Object.keys(inv[0] || {}).filter(h => h !== "_row");
+    const cols = headers.slice(0, Math.min(8, headers.length));
+    return `
+      <div style="overflow:auto;border-radius:12px;background:white;">
+        <table style="width:100%;border-collapse:collapse;">
+          <thead><tr>${cols.map(h => `<th style="text-align:left;padding:10px 12px;border-bottom:1px solid #eee;">${escapeHtml(h)}</th>`).join("")}</tr></thead>
+          <tbody>
+            ${inv.map(r => `
+              <tr>${cols.map(h => `<td style="padding:10px 12px;border-bottom:1px solid #f2f2f2;">${escapeHtml(String(r[h] ?? ""))}</td>`).join("")}</tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  function renderParentDashboard() {
+    const b = state.bootstrap || {};
+    const summary = b.summary || {};
+    const girls = Array.isArray(b.girls) ? b.girls : [];
+
+    elMain.innerHTML = `
+      <div style="max-width: 1200px;">
+        <h2 style="margin: 6px 0 12px;">My Dashboard</h2>
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(220px,1fr));gap:14px;margin-bottom:14px;">
+          ${tile("Total Credited", fmtMoney(toNum(summary["Total_Credited_$"])))}
+          ${tile("Total Paid", fmtMoney(toNum(summary["Total_Paid_$"])))}
+          ${tile("Balance Due", fmtMoney(toNum(summary["Balance_Due_$"])), true)}
+        </div>
+        <div style="padding: 16px; border-radius: 16px; background: rgba(0,0,0,0.03);">
+          <h3 style="margin: 0 0 10px;">My Girls</h3>
+          ${girls.length ? girls.map(g => `<div>${escapeHtml(String(g.Girl_Name || ""))}</div>`).join("") : "<div style='opacity:.75;'>No girls found.</div>"}
+        </div>
+      </div>
+    `;
+  }
+
+  function renderParentRequests() {
+    const b = state.bootstrap || {};
+    const requests = Array.isArray(b.requests) ? b.requests : [];
+    const token = b.parent?.token || QUERY.t || "";
+
+    elMain.innerHTML = `
+      <div style="max-width: 1200px;">
+        <h2 style="margin: 6px 0 12px;">My Requests</h2>
+
+        <div style="padding: 16px; border-radius: 16px; background: rgba(0,0,0,0.03); margin-bottom: 16px;">
+          <h3 style="margin: 0 0 10px;">New Request</h3>
+          <div style="display:grid;grid-template-columns:repeat(3,minmax(180px,1fr));gap:12px;">
+            <div>
+              <div style="font-size:12px;opacity:.7;margin-bottom:6px;">Cookie Type</div>
+              <input id="reqCookie" style="width:100%;padding:10px;border-radius:10px;border:1px solid #ddd;" />
+            </div>
+            <div>
+              <div style="font-size:12px;opacity:.7;margin-bottom:6px;">Boxes Requested</div>
+              <input id="reqBoxes" type="number" min="1" step="1" style="width:100%;padding:10px;border-radius:10px;border:1px solid #ddd;" />
+            </div>
+            <div>
+              <div style="font-size:12px;opacity:.7;margin-bottom:6px;">Notes</div>
+              <input id="reqNotes" style="width:100%;padding:10px;border-radius:10px;border:1px solid #ddd;" />
+            </div>
+          </div>
+          <div style="margin-top:12px;">
+            <button id="reqSubmit" style="padding:10px 14px;border:0;border-radius:10px;cursor:pointer;">Submit Request</button>
+          </div>
+        </div>
+
+        <div style="padding: 16px; border-radius: 16px; background: rgba(0,0,0,0.03);">
+          <h3 style="margin: 0 0 10px;">Request History</h3>
+          <div style="opacity:.75;">${requests.length} request(s).</div>
+        </div>
+      </div>
+    `;
+
+    $("#reqSubmit").addEventListener("click", async () => {
+      const cookieType = $("#reqCookie").value.trim();
+      const boxes = Number($("#reqBoxes").value);
+      const notes = $("#reqNotes").value.trim();
+
+      if (!cookieType || !isFinite(boxes) || boxes <= 0) {
+        showError("Enter a cookie type and a positive number of boxes.");
+        return;
+      }
+
+      setOverlay(true, "Submitting request…");
+      try {
+        await api("requests.parent.create", { token, Cookie_Type: cookieType, Boxes_Requested: boxes, Parent_Notes: notes });
+        state.bootstrap = await api("parent.bootstrap", { token });
+        showInfo("Request submitted.");
+        buildNav();
+        render();
+      } catch (e) {
+        showError("Request failed: " + e);
+      } finally {
+        setOverlay(false);
+      }
+    });
+  }
+
+  function renderParentCredits() {
+    elMain.innerHTML = `<div style="max-width:1200px;"><h2>My Sales / Credits</h2><div style="opacity:.75;">Wiring next.</div></div>`;
+  }
+
+  function tile(label, value, emphasizeRed) {
+    const color = emphasizeRed ? "color:#b00000;" : "";
+    return `
+      <div style="background:white;border-radius:16px;padding:14px 16px;box-shadow:0 6px 18px rgba(0,0,0,0.08);">
+        <div style="font-size:13px;opacity:.7;margin-bottom:6px;">${escapeHtml(label)}</div>
+        <div style="font-size:28px;font-weight:800;${color}">${escapeHtml(String(value))}</div>
+      </div>
+    `;
+  }
+
+  function toNum(v) {
+    const n = Number(v);
+    return isFinite(n) ? n : 0;
+  }
+
+  function escapeHtml(s) {
+    return String(s)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  async function init() {
+    setOverlay(true, "Loading…");
+    try {
+      state.who = await api("auth.whoAmI", {});
+      if (state.mode === "parent") {
+        const token = (QUERY.t || "").trim();
+        if (!token) {
+          showError("Missing parent token in URL. Use ?page=parent&t=TOKEN");
+          return;
+        }
+        state.bootstrap = await api("parent.bootstrap", { token });
+      } else {
+        state.bootstrap = await api("admin.bootstrap", {});
+      }
+      buildNav();
+      render();
+    } catch (e) {
+      // ✅ This will now show the real cause (Invalid token, Missing sheet, etc.)
+      showError("Startup failed: " + e);
+      console.error("Startup failed:", e);
+    } finally {
+      setOverlay(false);
+    }
+  }
+
+  init();
+})();
+</script>

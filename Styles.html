@@ -1,0 +1,143 @@
+<style>
+  body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #f6f7f9;
+    margin: 0;
+    padding: 0;
+  }
+
+  .container {
+    padding: 20px;
+  }
+
+  .header {
+    background: #27ae60;
+    color: white;
+    padding: 20px;
+    border-radius: 8px;
+  }
+
+  .section {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    margin-top: 20px;
+  }
+
+/* ===== DASHBOARD ===== */
+
+.dashboard-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin: 24px 0;
+}
+
+.card {
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.card-label {
+  font-size: 0.9rem;
+  color: #666;
+  margin-bottom: 6px;
+}
+
+.card-value {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #222;
+}
+
+.card-value.debt {
+  color: #c0392b;
+}
+
+/* Inventory table */
+.inventory-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 12px;
+}
+
+.inventory-table th,
+.inventory-table td {
+  border-bottom: 1px solid #ddd;
+  padding: 10px 8px;
+  text-align: left;
+}
+
+.inventory-table th {
+  background: #f4f6f8;
+  font-weight: 600;
+}
+
+/* ===== COOKIE COLOR ROWS (PASTEL) ===== */
+
+.cookie-row td {
+  font-weight: 500;
+}
+
+/* ADV – tan */
+.cookie-ADV td {
+  background-color: #efe3cf;
+}
+
+/* CCC – darker blue */
+.cookie-CCC td {
+  background-color: #d6e4f0;
+}
+
+/* CDL – purple */
+.cookie-CDL td {
+  background-color: #e6d9f2;
+}
+
+/* EX – pink */
+.cookie-EX td {
+  background-color: #f6d6e6;
+}
+
+/* LEM – yellow */
+.cookie-LEM td {
+  background-color: #fff3c4;
+}
+
+/* PBS – orange */
+.cookie-PBS td {
+  background-color: #ffe0c2;
+}
+
+/* PBP – red */
+.cookie-PBP td {
+  background-color: #f4cccc;
+}
+
+/* TM – green */
+.cookie-TM td {
+  background-color: #d9f0e3;
+}
+
+/* TRE – light blue */
+.cookie-TRE td {
+  background-color: #e1f2fb;
+}
+.btn {
+  border: none;
+  background: #27ae60;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.btn:hover { opacity: 0.9; }
+
+.btn.btn-secondary {
+  background: #c0392b;
+}
+</style>

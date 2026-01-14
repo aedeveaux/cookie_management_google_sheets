@@ -48,10 +48,8 @@
   <body>
     <!-- Query params from doGet(e) become available to JS here -->
     <script>
-      // __query is set in Code.gs: t.__query = e.parameter
       window.__QUERY = <?!= JSON.stringify(__query || {}) ?>;
-      // Convenience
-      window.__MODE = (window.__QUERY.page === 'parent') ? 'parent' : 'admin';
+      window.__MODE = <?!= JSON.stringify(__mode || "admin") ?>;
     </script>
 
     <div id="app">
@@ -79,14 +77,7 @@
       <div class="card" id="overlayText">Loading…</div>
     </div>
 
-    <!-- Your existing JS lives here -->
-    <!-- ✅ REQUIRED: define globals AppJs expects -->
-  <script>
-    window.__QUERY = <?= JSON.stringify(__query || {}) ?>;
-    window.__MODE  = (window.__QUERY.page === "parent") ? "parent" : "admin";
-  </script>
-
-  <!-- ✅ REQUIRED: include AppJs AFTER globals -->
+    <!-- ✅ REQUIRED: include AppJs AFTER globals -->
     <?!= include('AppJs'); ?>
   </body>
 </html>

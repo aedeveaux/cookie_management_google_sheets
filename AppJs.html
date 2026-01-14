@@ -9,7 +9,9 @@
   const elBanner = $("#banner");
 
   const QUERY = window.__QUERY || {};
-  const MODE = window.__MODE || "admin";
+  const urlParams = new URLSearchParams(window.location.search || "");
+  const MODE = window.__MODE || (urlParams.get("page") === "parent" ? "parent" : "admin");
+  const token = (QUERY.t || urlParams.get("t") || "").trim();
 
   const state = {
     mode: MODE,
@@ -74,7 +76,7 @@
         .withFailureHandler((err) => {
           reject(err && err.message ? err.message : String(err));
         })
-        .apiV2({ action, payload: payload || {} });
+        .api({ action, payload: payload || {} });
     });
   }
 
@@ -328,11 +330,15 @@
   async function init() {
     setOverlay(true, "Loading…");
     try {
+      console.log("href", location.href);
+      console.log("MODE", MODE);
+      console.log("QUERY", QUERY);
+      console.log("token", token ? token.slice(0, 8) + "…" : "");
+
       state.who = await api("auth.whoAmI", {});
       if (state.mode === "parent") {
-        const token = (QUERY.t || "").trim();
         if (!token) {
-          showError("Missing parent token in URL. Use ?page=parent&t=TOKEN");
+          showError("Missing parent token. Use ?page=parent&t=TOKEN");
           return;
         }
         state.bootstrap = await api("parent.bootstrap", { token });

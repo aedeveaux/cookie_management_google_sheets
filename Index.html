@@ -1,0 +1,92 @@
+<!doctype html>
+<html>
+  <head>
+    <base target="_top" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Troop 167 Cookie Management</title>
+
+    <!-- Your existing styles live here -->
+    <?!= include('Styles'); ?>
+
+    <!-- Minimal structural helpers (safe even if you already style these elsewhere) -->
+    <style>
+      /* App shell layout (won't fight your existing CSS; mostly structure) */
+      #app { min-height: 100vh; display: flex; flex-direction: column; }
+      .app-shell { display: flex; flex: 1; width: 100%; }
+      .app-main { flex: 1; padding: 18px; }
+
+      /* Lightweight status UI */
+      .banner { display:none; margin: 12px 18px 0; padding: 10px 12px; border-radius: 10px; font-size: 14px; }
+      .banner.error { display:block; background: #ffe8e8; border: 1px solid #ffb3b3; color: #7a0000; }
+      .banner.info  { display:block; background: #eef6ff; border: 1px solid #b7d7ff; color: #003a7a; }
+
+      .overlay {
+        position: fixed; inset: 0;
+        display: none;
+        align-items: center; justify-content: center;
+        background: rgba(255,255,255,0.65);
+        z-index: 9999;
+      }
+      .overlay.on { display:flex; }
+      .overlay .card {
+        background: white;
+        border-radius: 14px;
+        padding: 14px 16px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+        font-size: 14px;
+      }
+
+      /* Nav placeholder (we'll wire this in AppJs) */
+      .nav { width: 250px; padding: 18px 12px; }
+      .nav .nav-title { font-weight: 700; margin-bottom: 10px; opacity: 0.85; }
+      .nav button { width: 100%; text-align: left; padding: 10px 12px; border-radius: 10px; border: 0; cursor: pointer; margin-bottom: 8px; }
+      .nav button.active { font-weight: 700; }
+    </style>
+  </head>
+
+  <body>
+    <!-- Query params from doGet(e) become available to JS here -->
+    <script>
+      // __query is set in Code.gs: t.__query = e.parameter
+      window.__QUERY = <?!= JSON.stringify(__query || {}) ?>;
+      // Convenience
+      window.__MODE = (window.__QUERY.page === 'parent') ? 'parent' : 'admin';
+    </script>
+
+    <div id="app">
+      <!-- Error banner (AppJs toggles this if API fails) -->
+      <div id="banner" class="banner"></div>
+
+      <!-- Your existing header/dashboard HTML can stay in AppJs if you prefer.
+           We'll render everything dynamically; keeping the body clean here. -->
+      <div class="app-shell">
+        <!-- Left nav -->
+        <aside class="nav" id="nav">
+          <div class="nav-title" id="navTitle">Loading…</div>
+          <!-- Buttons will be injected -->
+        </aside>
+
+        <!-- Main content -->
+        <main class="app-main" id="main">
+          <!-- AppJs will render views here -->
+        </main>
+      </div>
+    </div>
+
+    <!-- Loading overlay -->
+    <div class="overlay" id="overlay">
+      <div class="card" id="overlayText">Loading…</div>
+    </div>
+
+    <!-- Your existing JS lives here -->
+    <!-- ✅ REQUIRED: define globals AppJs expects -->
+  <script>
+    window.__QUERY = <?= JSON.stringify(__query || {}) ?>;
+    window.__MODE  = (window.__QUERY.page === "parent") ? "parent" : "admin";
+  </script>
+
+  <!-- ✅ REQUIRED: include AppJs AFTER globals -->
+    <?!= include('AppJs'); ?>
+  </body>
+</html>
